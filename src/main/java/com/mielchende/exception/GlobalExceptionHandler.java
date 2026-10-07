@@ -4,6 +4,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -30,6 +31,14 @@ public class GlobalExceptionHandler {
         String message = fieldError.getField() + ": " + fieldError.getDefaultMessage();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("message", message));
+    }
+
+    /* Body que no es un JSON válido (falta un valor, sobra una coma...) → 400 Bad Request.
+       Es un error del cliente, no del servidor */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> handleMalformedJson(HttpMessageNotReadableException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("message", "El cuerpo de la petición no es un JSON válido"));
     }
 
     /* Red de seguridad para cualquier error no previsto → 500.
