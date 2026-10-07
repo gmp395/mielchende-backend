@@ -1,10 +1,23 @@
+# Servicios que Docker Compose levanta para el proyecto
 services:
   mysql:
-    image: 'mysql:latest'
+    # Versión fija de MySQL (8.4, soporte a largo plazo) en lugar de "latest"
+    image: 'mysql:8.4'
+    # Nombre reconocible del contenedor en Docker Desktop
+    container_name: 'mielchende-mysql'
+    # Credenciales leídas del archivo .env (nunca escritas aquí)
     environment:
-      - 'MYSQL_DATABASE=mydatabase'
-      - 'MYSQL_PASSWORD=secret'
-      - 'MYSQL_ROOT_PASSWORD=verysecret'
-      - 'MYSQL_USER=myuser'
+      - 'MYSQL_DATABASE=${MYSQL_DATABASE}'
+      - 'MYSQL_USER=${MYSQL_USER}'
+      - 'MYSQL_PASSWORD=${MYSQL_PASSWORD}'
+      - 'MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}'
+    # Puerto de tu máquina (izquierda) : puerto dentro del contenedor (derecha)
     ports:
-      - '3306'
+      - '3308:3306'
+    # Guarda los datos fuera del contenedor para que no se pierdan al recrearlo
+    volumes:
+      - 'mysql_data:/var/lib/mysql'
+
+# Declaración del volumen usado arriba
+volumes:
+  mysql_data:
