@@ -73,7 +73,7 @@ class RoleAuthorizationIntegrationTest {
     @Test
     void adminRouteWithAdminTokenIsAllowed() throws Exception {
         /* La seguridad deja pasar; 404 porque la ruta aún no existe */
-        mockMvc.perform(get("/api/admin/products")
+                mockMvc.perform(get("/api/admin/ruta-inexistente")
                         .header("Authorization", "Bearer " + loginAndGetToken(ADMIN_EMAIL)))
                 .andExpect(status().isNotFound());
     }
