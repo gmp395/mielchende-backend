@@ -82,7 +82,7 @@ class RoleAuthorizationIntegrationTest {
     void publicCatalogRouteWorksWithoutToken() throws Exception {
         /* Catálogo público: sin token no da 401, llega hasta la ruta (404 de momento) */
         mockMvc.perform(get("/api/products"))
-                .andExpect(status().isNotFound());
+                            .andExpect(status().isOk());
     }
 
     @Test

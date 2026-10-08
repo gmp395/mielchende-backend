@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import com.mielchende.product.exception.ProductNotFoundException;
 import com.mielchende.user.exception.UserAlreadyExistsException;
 
 /* Captura las excepciones lanzadas en cualquier parte de la aplicación
@@ -24,7 +25,14 @@ public class GlobalExceptionHandler {
                 .body(Map.of("message", ex.getMessage()));
     }
 
-    /* Datos inválidos en un DTO con @Valid (campo vacío, email mal escrito...) → 400 Bad Request.
+    /* Producto inexistente → 404 Not Found con mensaje controlado */
+    @ExceptionHandler(ProductNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleProductNotFound(ProductNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    /* Datos inválidos en un DTO con @Valid → 400 Bad Request.
        Devuelve el primer campo que ha fallado y el motivo */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
