@@ -8,6 +8,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.mielchende.user.exception.UserAlreadyExistsException;
 
@@ -33,12 +34,18 @@ public class GlobalExceptionHandler {
                 .body(Map.of("message", message));
     }
 
-    /* Body que no es un JSON válido (falta un valor, sobra una coma...) → 400 Bad Request.
-       Es un error del cliente, no del servidor */
+    /* Body que no es un JSON válido → 400 Bad Request (error del cliente) */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, String>> handleMalformedJson(HttpMessageNotReadableException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("message", "El cuerpo de la petición no es un JSON válido"));
+    }
+
+    /* Ruta que no existe → 404 Not Found (no 500) */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, String>> handleNotFound(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", "Recurso no encontrado"));
     }
 
     /* Red de seguridad para cualquier error no previsto → 500.
