@@ -30,8 +30,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            /* CORS: primer filtro de la cadena (apuntes 15.5).
-               Usa el bean corsConfigurationSource definido más abajo */
+            /* CORS: primer filtro de la cadena (apuntes 15.5) */
             .cors(withDefaults())
 
             /* CSRF desactivado: API stateless con JWT, sin cookies de sesión (apuntes 15.4) */
@@ -49,10 +48,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 /* Ruta interna de errores: pública, para no convertir errores en 401 */
                 .requestMatchers("/error").permitAll()
-                /* Panel de administración: solo ROLE_ADMIN.
-                   hasRole("ADMIN") añade el prefijo ROLE_ automáticamente */
+                /* Panel de administración: solo ROLE_ADMIN */
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                /* Todo lo demás (login, pedidos...): cualquier usuaria autenticada */
+                /* Solicitudes de pedido: solo clientas (ROLE_USER), según MC-29 */
+                .requestMatchers("/api/orders/**").hasRole("USER")
+                /* Todo lo demás (login...): cualquier usuaria autenticada */
                 .anyRequest().authenticated()
             )
 
@@ -66,9 +66,7 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /* Configuración CORS: qué orígenes, métodos y cabeceras acepta la API.
-       Incluye Authorization, sin la cual el navegador bloquearía el envío del token
-       (error típico "blocked by CORS policy", apuntes 15.20) */
+    /* Configuración CORS: orígenes, métodos y cabeceras que acepta la API */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
@@ -76,7 +74,6 @@ public class SecurityConfig {
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
 
-        /* Se aplica a todas las rutas de la API */
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
         return source;

@@ -2,6 +2,7 @@ package com.mielchende.exception;
 
 import java.util.Map;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import com.mielchende.order.exception.ProductUnavailableException;
 import com.mielchende.product.exception.ProductNotFoundException;
 import com.mielchende.user.exception.UserAlreadyExistsException;
 
@@ -30,6 +32,22 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleProductNotFound(ProductNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("message", ex.getMessage()));
+    }
+
+    /* Solicitud de un producto agotado → 409 Conflict, indicando cuál */
+    @ExceptionHandler(ProductUnavailableException.class)
+    public ResponseEntity<Map<String, String>> handleProductUnavailable(ProductUnavailableException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    /* La base de datos rechaza la operación por datos relacionados
+       (p. ej., borrar un producto que aparece en solicitudes) → 409 Conflict */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("message",
+                        "No se puede completar la operación porque hay datos relacionados"));
     }
 
     /* Datos inválidos en un DTO con @Valid → 400 Bad Request.
