@@ -49,23 +49,19 @@ class OrderServiceImplTest {
 
     @Test
     void createsOrderWithItemsAndReceivedStatus() {
-        /* Given: usuaria existente y dos productos disponibles */
         when(userRepository.findByEmail("ana@mail.com")).thenReturn(Optional.of(user));
         when(productRepository.findById(1L))
                 .thenReturn(Optional.of(product(1L, "Miel de castaño", ProductStatus.AVAILABLE)));
         when(productRepository.findById(2L))
                 .thenReturn(Optional.of(product(2L, "Polen", ProductStatus.AVAILABLE)));
-        /* save() devuelve la misma solicitud que recibe */
         when(orderRepository.save(any(OrderEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         CreateOrderDto request = new CreateOrderDto(
                 List.of(new OrderItemRequestDto(1L, 2), new OrderItemRequestDto(2L, 1)),
                 "600000000", "Entrega por la tarde");
 
-        /* When */
         OrderResponseDto result = orderService.create("ana@mail.com", request);
 
-        /* Then: estado inicial RECEIVED y las dos líneas */
         assertThat(result.status()).isEqualTo(OrderStatus.RECEIVED);
         assertThat(result.items()).hasSize(2);
         assertThat(result.items().get(0).quantity()).isEqualTo(2);
@@ -74,7 +70,6 @@ class OrderServiceImplTest {
 
     @Test
     void throwsExceptionWhenAProductIsSoldOut() {
-        /* Given: el producto está agotado */
         when(userRepository.findByEmail("ana@mail.com")).thenReturn(Optional.of(user));
         when(productRepository.findById(1L))
                 .thenReturn(Optional.of(product(1L, "Polen", ProductStatus.SOLD_OUT)));
@@ -82,7 +77,6 @@ class OrderServiceImplTest {
         CreateOrderDto request = new CreateOrderDto(
                 List.of(new OrderItemRequestDto(1L, 1)), null, null);
 
-        /* When + Then: excepción y no se guarda nada */
         assertThatThrownBy(() -> orderService.create("ana@mail.com", request))
                 .isInstanceOf(ProductUnavailableException.class)
                 .hasMessageContaining("agotado");
@@ -102,7 +96,29 @@ class OrderServiceImplTest {
         verify(orderRepository, never()).save(any());
     }
 
-    /* Ayudante para crear productos de prueba */
+    @Test
+    void findAllReturnsOrdersInRepositoryOrder() {
+        /* Given: el repositorio ya las devuelve ordenadas (más reciente primero) */
+        when(orderRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(
+                order(2L, "Segunda"),
+                order(1L, "Primera")));
+
+        /* When */
+        List<OrderResponseDto> result = orderService.findAll();
+
+        /* Then: se mantiene ese orden al convertir a DTO */
+        assertThat(result).extracting(OrderResponseDto::comments)
+                .containsExactly("Segunda", "Primera");
+    }
+
+    @Test
+    void summaryCountsReceivedOrders() {
+        when(orderRepository.countByStatus(OrderStatus.RECEIVED)).thenReturn(3L);
+
+        assertThat(orderService.getSummary().pendingOrders()).isEqualTo(3L);
+    }
+
+    /* Ayudantes para crear datos de prueba */
     private ProductEntity product(Long id, String name, ProductStatus status) {
         return ProductEntity.builder()
                 .id(id)
@@ -112,5 +128,19 @@ class OrderServiceImplTest {
                 .price(new BigDecimal("8.50"))
                 .status(status)
                 .build();
+    }
+
+    private OrderEntity order(Long id, String comments) {
+        OrderEntity order = OrderEntity.builder()
+                .id(id)
+                .user(user)
+                .comments(comments)
+                .status(OrderStatus.RECEIVED)
+                .build();
+        order.addItem(OrderItemEntity.builder()
+                .product(product(1L, "Miel de castaño", ProductStatus.AVAILABLE))
+                .quantity(1)
+                .build());
+        return order;
     }
 }
