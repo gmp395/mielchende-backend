@@ -1,11 +1,14 @@
 package com.mielchende.order;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.mielchende.order.dto.CreateOrderDto;
 import com.mielchende.order.dto.OrderItemRequestDto;
 import com.mielchende.order.dto.OrderResponseDto;
+import com.mielchende.order.dto.OrderSummaryDto;
 import com.mielchende.order.exception.ProductUnavailableException;
 import com.mielchende.product.ProductEntity;
 import com.mielchende.product.ProductRepository;
@@ -67,5 +70,22 @@ public class OrderServiceImpl implements OrderService {
 
         /* 4. Al guardar la solicitud, las líneas se guardan en cascada */
         return OrderMapper.toResponseDto(orderRepository.save(order));
+    }
+
+    /* Todas las solicitudes, de la más reciente a la más antigua (MC-31).
+       readOnly: solo lectura; mantiene la conexión abierta para cargar las líneas */
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderResponseDto> findAll() {
+        return orderRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(OrderMapper::toResponseDto)
+                .toList();
+    }
+
+    /* Resumen del panel: número de solicitudes pendientes (RECEIVED) */
+    @Override
+    @Transactional(readOnly = true)
+    public OrderSummaryDto getSummary() {
+        return new OrderSummaryDto(orderRepository.countByStatus(OrderStatus.RECEIVED));
     }
 }
