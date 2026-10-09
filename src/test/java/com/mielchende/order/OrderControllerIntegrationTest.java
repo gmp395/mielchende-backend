@@ -3,6 +3,7 @@ package com.mielchende.order;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -38,6 +39,7 @@ class OrderControllerIntegrationTest {
 
     private static final String ORDERS_URL = "/api/orders";
     private static final String CLIENT_EMAIL = "cliente@prueba.com";
+    private static final String OTHER_CLIENT_EMAIL = "otra.cliente@prueba.com";
     private static final String ADMIN_EMAIL = "admin@prueba.com";
     private static final String PASSWORD = "contrasenaDePrueba123";
 
@@ -63,7 +65,7 @@ class OrderControllerIntegrationTest {
     private Long pollenId;
     private Long soldOutId;
 
-    /* Antes de cada test: base de datos limpia, una clienta, una admin y tres productos.
+    /* Antes de cada test: base de datos limpia, dos clientas, una admin y tres productos.
        Las solicitudes se borran primero, porque dependen de usuarios y productos */
     @BeforeEach
     void setUp() {
@@ -72,6 +74,7 @@ class OrderControllerIntegrationTest {
         userRepository.deleteAll();
 
         createUser("Cliente", CLIENT_EMAIL, RoleDataInitializer.ROLE_USER);
+        createUser("Otra cliente", OTHER_CLIENT_EMAIL, RoleDataInitializer.ROLE_USER);
         createUser("Admin", ADMIN_EMAIL, RoleDataInitializer.ROLE_ADMIN);
 
         honeyId = saveProduct("Miel de castaño", ProductStatus.AVAILABLE);
@@ -152,6 +155,31 @@ class OrderControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void clientOnlySeesHerOwnOrders() throws Exception {
+        /* Given: cada clienta envía una solicitud */
+        String body = """
+                { "items": [ { "productId": %d, "quantity": 1 } ] }
+                """.formatted(honeyId);
+
+        for (String email : new String[] { CLIENT_EMAIL, OTHER_CLIENT_EMAIL }) {
+            mockMvc.perform(post(ORDERS_URL)
+                            .header("Authorization", "Bearer " + token(email))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isCreated());
+        }
+
+        /* When: la primera clienta pide sus solicitudes.
+           Then: recibe solo la suya, nunca la de la otra clienta */
+        mockMvc.perform(get(ORDERS_URL)
+                        .header("Authorization", "Bearer " + token(CLIENT_EMAIL)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].customerEmail").value(CLIENT_EMAIL))
+                .andExpect(jsonPath("$[0].status").value("RECEIVED"));
     }
 
     @Test

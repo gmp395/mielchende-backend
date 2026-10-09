@@ -1,8 +1,11 @@
 package com.mielchende.order;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,6 +25,14 @@ public class OrderController {
 
     public OrderController(OrderService orderService) {
         this.orderService = orderService;
+    }
+
+    /* GET /api/orders → solicitudes de la clienta con la sesión iniciada (200 OK).
+       La URL no lleva ningún id de usuaria: el email sale del token JWT.
+       Así una clienta no puede ver las solicitudes de otra cambiando la URL */
+    @GetMapping
+    public ResponseEntity<List<OrderResponseDto>> findMine(Authentication authentication) {
+        return ResponseEntity.ok(orderService.findByUserEmail(authentication.getName()));
     }
 
     /* POST /api/orders → crea la solicitud (201 Created).

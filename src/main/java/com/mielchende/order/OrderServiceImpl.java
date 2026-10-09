@@ -72,6 +72,18 @@ public class OrderServiceImpl implements OrderService {
         return OrderMapper.toResponseDto(orderRepository.save(order));
     }
 
+    /* Solicitudes de la clienta con la sesión iniciada ("Mis solicitudes").
+       El email llega del token, así que cada clienta solo puede ver las suyas.
+       Si todavía no tiene ninguna, devuelve una lista vacía (no es un error).
+       readOnly: solo lectura; mantiene la conexión abierta para cargar las líneas */
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderResponseDto> findByUserEmail(String userEmail) {
+        return orderRepository.findByUserEmailOrderByCreatedAtDesc(userEmail).stream()
+                .map(OrderMapper::toResponseDto)
+                .toList();
+    }
+
     /* Todas las solicitudes, de la más reciente a la más antigua (MC-31).
        readOnly: solo lectura; mantiene la conexión abierta para cargar las líneas */
     @Override
