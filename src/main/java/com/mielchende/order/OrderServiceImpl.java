@@ -9,6 +9,8 @@ import com.mielchende.order.dto.CreateOrderDto;
 import com.mielchende.order.dto.OrderItemRequestDto;
 import com.mielchende.order.dto.OrderResponseDto;
 import com.mielchende.order.dto.OrderSummaryDto;
+import com.mielchende.order.exception.InvalidStatusTransitionException;
+import com.mielchende.order.exception.OrderNotFoundException;
 import com.mielchende.order.exception.ProductUnavailableException;
 import com.mielchende.product.ProductEntity;
 import com.mielchende.product.ProductRepository;
@@ -99,5 +101,28 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public OrderSummaryDto getSummary() {
         return new OrderSummaryDto(orderRepository.countByStatus(OrderStatus.RECEIVED));
+    }
+
+    /* Cambia el estado de una solicitud (solo la administradora).
+       La regla "un paso adelante o atrás" vive en OrderStatus.canChangeTo():
+       el service solo la consulta y actúa según la respuesta */
+    @Override
+    @Transactional
+    public OrderResponseDto updateStatus(Long orderId, OrderStatus newStatus) {
+
+        /* 1. La solicitud tiene que existir */
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Solicitud no encontrada"));
+
+        /* 2. El cambio tiene que estar permitido por la regla de negocio */
+        if (!order.getStatus().canChangeTo(newStatus)) {
+            throw new InvalidStatusTransitionException(
+                    "No se puede pasar de " + order.getStatus() + " a " + newStatus
+                    + ": solo se permite avanzar o retroceder un paso");
+        }
+
+        /* 3. Cambiamos el estado, guardamos y devolvemos el DTO */
+        order.setStatus(newStatus);
+        return OrderMapper.toResponseDto(orderRepository.save(order));
     }
 }

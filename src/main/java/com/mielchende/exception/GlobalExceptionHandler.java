@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import com.mielchende.order.exception.InvalidStatusTransitionException;
+import com.mielchende.order.exception.OrderNotFoundException;
 import com.mielchende.order.exception.ProductUnavailableException;
 import com.mielchende.product.exception.ProductNotFoundException;
 import com.mielchende.user.exception.UserAlreadyExistsException;
@@ -37,6 +39,22 @@ public class GlobalExceptionHandler {
     /* Solicitud de un producto agotado → 409 Conflict, indicando cuál */
     @ExceptionHandler(ProductUnavailableException.class)
     public ResponseEntity<Map<String, String>> handleProductUnavailable(ProductUnavailableException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    /* Solicitud de pedido inexistente → 404 Not Found */
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleOrderNotFound(OrderNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    /* Cambio de estado no permitido (saltar un paso o mismo estado) → 409 Conflict.
+       La petición es correcta, pero choca con el estado actual de la solicitud */
+    @ExceptionHandler(InvalidStatusTransitionException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidStatusTransition(
+            InvalidStatusTransitionException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("message", ex.getMessage()));
     }

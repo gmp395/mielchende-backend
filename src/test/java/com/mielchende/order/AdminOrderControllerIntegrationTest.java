@@ -1,7 +1,9 @@
 package com.mielchende.order;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -18,6 +20,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 import com.jayway.jsonpath.JsonPath;
 import com.mielchende.TestcontainersConfiguration;
@@ -29,7 +32,7 @@ import com.mielchende.role.RoleRepository;
 import com.mielchende.user.UserEntity;
 import com.mielchende.user.UserRepository;
 
-/* Test de integración: la admin consulta las solicitudes, contra MySQL real */
+/* Test de integración: la admin consulta y gestiona las solicitudes, contra MySQL real */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
@@ -116,6 +119,50 @@ class AdminOrderControllerIntegrationTest {
         mockMvc.perform(get(ADMIN_ORDERS_URL)
                         .header("Authorization", "Bearer " + token(CLIENT_EMAIL)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminConfirmsReceivedOrder() throws Exception {
+        /* RECEIVED → CONFIRMED: un paso adelante → 200 con el estado nuevo */
+        patchStatus(anyOrderId(), "CONFIRMED", ADMIN_EMAIL)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"));
+    }
+
+    @Test
+    void skippingAStepReturns409() throws Exception {
+        /* RECEIVED → SHIPPED: se salta CONFIRMED → 409 con mensaje explicativo */
+        patchStatus(anyOrderId(), "SHIPPED", ADMIN_EMAIL)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message", containsString("un paso")));
+    }
+
+    @Test
+    void changingStatusOfNonexistentOrderReturns404() throws Exception {
+        /* Un id que no existe en la base de datos → 404 */
+        patchStatus(999999L, "CONFIRMED", ADMIN_EMAIL)
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void clientCannotChangeOrderStatus() throws Exception {
+        /* Solo la admin puede cambiar estados: una clienta → 403 */
+        patchStatus(anyOrderId(), "CONFIRMED", CLIENT_EMAIL)
+                .andExpect(status().isForbidden());
+    }
+
+    /* Ayudante: envía el PATCH de cambio de estado con el token de la usuaria indicada.
+       Devuelve ResultActions para que cada test añada sus propias comprobaciones */
+    private ResultActions patchStatus(Long orderId, String newStatus, String email) throws Exception {
+        return mockMvc.perform(patch(ADMIN_ORDERS_URL + "/" + orderId + "/status")
+                .header("Authorization", "Bearer " + token(email))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{ \"status\": \"" + newStatus + "\" }"));
+    }
+
+    /* Ayudante: id de una de las solicitudes creadas en setUp (ambas están en RECEIVED) */
+    private Long anyOrderId() {
+        return orderRepository.findAll().get(0).getId();
     }
 
     /* Ayudante: la clienta envía una solicitud con un comentario identificativo */
