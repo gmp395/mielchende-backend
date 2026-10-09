@@ -17,4 +17,7 @@ public interface OrderService {
     List<OrderResponseDto> findAll();
 
     OrderSummaryDto getSummary();
+
+    /* Cambia el estado de una solicitud, respetando la regla de un paso adelante o atrás */
+    OrderResponseDto updateStatus(Long orderId, OrderStatus newStatus);
 }
