@@ -11,6 +11,9 @@ public interface OrderService {
 
     OrderResponseDto create(String userEmail, CreateOrderDto request);
 
+    /* Solicitudes de una clienta concreta, identificada por el email del token */
+    List<OrderResponseDto> findByUserEmail(String userEmail);
+
     List<OrderResponseDto> findAll();
 
     OrderSummaryDto getSummary();
