@@ -127,4 +127,25 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("El cuerpo de la petición no es un JSON válido"));
     }
+
+    @Test
+    void registerReturns400WhenPasswordIsTooShort() throws Exception {
+        /* Contraseña de 7 caracteres: uno menos del mínimo */
+        String body = """
+                {
+                  "name": "Ana Prueba",
+                  "email": "ana@prueba.com",
+                  "password": "corta12"
+                }
+                """;
+
+        mockMvc.perform(post(REGISTER_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("password: debe tener al menos 8 caracteres"));
+
+        /* Y no se ha guardado nada en la base de datos */
+        assertThat(userRepository.findByEmail("ana@prueba.com")).isEmpty();
+    }
 }
