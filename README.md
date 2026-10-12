@@ -63,7 +63,181 @@ Cada funcionalidad tiene sus propias excepciones de negocio (por ejemplo, `Produ
 
 ## Diagramas
 
-<!-- Pendiente (MC-20 y MC-21): diagrama entidad-relación y diagrama de clases -->
+### Diagrama entidad-relación
+
+Tablas de la base de datos y sus relaciones. Las líneas de las solicitudes se guardan aparte (`order_items`) porque una solicitud puede incluir varios productos.
+
+```mermaid
+erDiagram
+    ROLES ||--o{ USERS : "asigna"
+    USERS ||--o{ ORDER_REQUESTS : "envía"
+    ORDER_REQUESTS ||--|{ ORDER_ITEMS : "contiene"
+    PRODUCTS ||--o{ ORDER_ITEMS : "aparece en"
+
+    ROLES {
+        bigint id PK
+        varchar name UK "ROLE_USER o ROLE_ADMIN"
+    }
+    USERS {
+        bigint id PK
+        varchar name
+        varchar email UK
+        varchar password "cifrada con BCrypt"
+        bigint role_id FK
+    }
+    PRODUCTS {
+        bigint id PK
+        varchar name
+        text description
+        varchar format "p. ej. 500 g"
+        decimal price "8 dígitos, 2 decimales"
+        varchar image_url "opcional"
+        varchar season_info "opcional"
+        varchar status "AVAILABLE o SOLD_OUT"
+    }
+    ORDER_REQUESTS {
+        bigint id PK
+        bigint user_id FK
+        varchar phone "opcional"
+        text comments "opcional"
+        varchar status "RECEIVED, CONFIRMED o SHIPPED"
+        datetime created_at
+    }
+    ORDER_ITEMS {
+        bigint id PK
+        bigint order_id FK
+        bigint product_id FK
+        int quantity
+    }
+```
+
+**Cómo leerlo:** `PK` clave primaria, `FK` clave foránea, `UK` valor único. En las líneas, `||` significa "exactamente uno", `o{` "cero o varios" y `|{` "uno o varios".
+
+### Diagrama de clases del modelo
+
+Entidades JPA y enumerados. La tabla de solicitudes se llama `order_requests` porque `ORDER` es palabra reservada en SQL.
+
+```mermaid
+classDiagram
+    direction LR
+
+    class RoleEntity {
+        -Long id
+        -String name
+    }
+    class UserEntity {
+        -Long id
+        -String name
+        -String email
+        -String password
+        -RoleEntity role
+    }
+    class ProductEntity {
+        -Long id
+        -String name
+        -String description
+        -String format
+        -BigDecimal price
+        -String imageUrl
+        -String seasonInfo
+        -ProductStatus status
+    }
+    class OrderEntity {
+        -Long id
+        -UserEntity user
+        -List~OrderItemEntity~ items
+        -String phone
+        -String comments
+        -OrderStatus status
+        -LocalDateTime createdAt
+        +addItem(OrderItemEntity item) void
+    }
+    class OrderItemEntity {
+        -Long id
+        -OrderEntity order
+        -ProductEntity product
+        -Integer quantity
+    }
+    class ProductStatus {
+        <<enumeration>>
+        AVAILABLE
+        SOLD_OUT
+    }
+    class OrderStatus {
+        <<enumeration>>
+        RECEIVED
+        CONFIRMED
+        SHIPPED
+        +canChangeTo(OrderStatus target) boolean
+    }
+
+    UserEntity "*" --> "1" RoleEntity : role
+    OrderEntity "*" --> "1" UserEntity : user
+    OrderEntity "1" *-- "1..*" OrderItemEntity : items
+    OrderItemEntity "*" --> "1" ProductEntity : product
+    ProductEntity ..> ProductStatus
+    OrderEntity ..> OrderStatus
+```
+
+**Cómo leerlo:** `-` atributo privado, `+` método público. La flecha continua es una asociación, con su multiplicidad (`1`, `*`, `1..*`). El rombo relleno es una composición: las líneas no existen sin su solicitud (`cascade = ALL` y `orphanRemoval`). La flecha discontinua indica que la clase usa ese enumerado.
+
+### Diagrama de capas: solicitudes de pedido
+
+Ejemplo de cómo se organiza una funcionalidad: los controladores dependen de la interfaz del servicio, no de su implementación.
+
+```mermaid
+classDiagram
+    direction TB
+
+    class OrderController {
+        +findMine(Authentication) List~OrderResponseDto~
+        +create(Authentication, CreateOrderDto) OrderResponseDto
+    }
+    class AdminOrderController {
+        +findAll() List~OrderResponseDto~
+        +getSummary() OrderSummaryDto
+        +updateStatus(Long, OrderStatusRequestDto) OrderResponseDto
+    }
+    class OrderService {
+        <<interface>>
+        +create(String userEmail, CreateOrderDto) OrderResponseDto
+        +findByUserEmail(String userEmail) List~OrderResponseDto~
+        +findAll() List~OrderResponseDto~
+        +getSummary() OrderSummaryDto
+        +updateStatus(Long orderId, OrderStatus) OrderResponseDto
+    }
+    class OrderServiceImpl
+    class OrderMapper {
+        <<utility>>
+        +toResponseDto(OrderEntity)$ OrderResponseDto
+    }
+    class ProductRepository {
+        <<interface>>
+    }
+    class UserRepository {
+        <<interface>>
+        +findByEmail(String email) Optional~UserEntity~
+    }
+    class OrderRepository {
+        <<interface>>
+        +findAllByOrderByCreatedAtDesc() List~OrderEntity~
+        +findByUserEmailOrderByCreatedAtDesc(String email) List~OrderEntity~
+    }
+    class JpaRepository~OrderEntity, Long~ {
+        <<interface>>
+    }
+
+    OrderController --> OrderService
+    AdminOrderController --> OrderService
+    OrderServiceImpl ..|> OrderService
+    OrderServiceImpl --> OrderRepository
+    OrderServiceImpl --> ProductRepository
+    OrderServiceImpl --> UserRepository
+    OrderServiceImpl ..> OrderMapper
+    OrderRepository --|> JpaRepository~OrderEntity, Long~
+```
+
+**Cómo leerlo:** la flecha discontinua con triángulo hueco significa "implementa" (`OrderServiceImpl` implementa `OrderService`), y la continua con triángulo, "hereda" (`OrderRepository` extiende `JpaRepository`). El `$` marca un método estático.
 
 ## Instalación y puesta en marcha
 
