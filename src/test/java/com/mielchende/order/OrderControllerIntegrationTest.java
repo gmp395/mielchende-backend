@@ -31,7 +31,6 @@ import com.mielchende.role.RoleDataInitializer;
 import com.mielchende.role.RoleRepository;
 import com.mielchende.user.UserEntity;
 import com.mielchende.user.UserRepository;
-import com.mielchende.product.ProductCategory;
 
 /* Test de integración de las solicitudes de pedido, contra MySQL real */
 @SpringBootTest

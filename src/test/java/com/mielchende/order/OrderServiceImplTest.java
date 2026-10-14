@@ -28,7 +28,6 @@ import com.mielchende.product.ProductStatus;
 import com.mielchende.product.exception.ProductNotFoundException;
 import com.mielchende.user.UserEntity;
 import com.mielchende.user.UserRepository;
-import com.mielchende.product.ProductCategory;
 
 /* Test unitario del servicio de solicitudes de pedido */
 @ExtendWith(MockitoExtension.class)
