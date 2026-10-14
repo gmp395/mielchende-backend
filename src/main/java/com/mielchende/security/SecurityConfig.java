@@ -46,13 +46,15 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                 /* Catálogo y ficha de producto: públicos, solo lectura */
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                /* Artículos publicados de Actualidad: públicos, solo lectura */
+                .requestMatchers(HttpMethod.GET, "/api/articles").permitAll()
                 /* Ruta interna de errores: pública, para no convertir errores en 401 */
                 .requestMatchers("/error").permitAll()
                 /* Panel de administración: solo ROLE_ADMIN */
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                /* Solicitudes de pedido: solo clientas (ROLE_USER), según MC-29 */
+                /* Solicitudes de pedido: solo clientes (ROLE_USER), según MC-29 */
                 .requestMatchers("/api/orders/**").hasRole("USER")
-                /* Todo lo demás (login...): cualquier usuaria autenticada */
+                /* Todo lo demás (login...): cualquier usuario autenticado */
                 .anyRequest().authenticated()
             )
 
