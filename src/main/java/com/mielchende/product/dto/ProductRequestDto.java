@@ -22,8 +22,8 @@ public record ProductRequestDto(
     @NotBlank
     String format,
 
-    /* Obligatorio y mayor que cero */
-    @NotNull
+    /* Opcional (null = precio a consultar); si se envía, mayor que cero.
+       @Positive no se aplica a null: solo valida cuando hay valor */
     @Positive
     BigDecimal price,
 

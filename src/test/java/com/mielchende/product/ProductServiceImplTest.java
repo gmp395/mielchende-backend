@@ -79,6 +79,23 @@ class ProductServiceImplTest {
     }
 
     @Test
+    void createAllowsProductWithoutPrice() {
+        /* Given: save() devuelve el mismo producto que recibe */
+        when(productRepository.save(any(ProductEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        /* When: se crea un producto sin precio (precio a consultar) */
+        ProductRequestDto withoutPrice = new ProductRequestDto("Reinas", "Reinas de nuestras colmenas.",
+                "Unidad", null, null, null, ProductCategory.BEEKEEPER_PRODUCTS,
+                ProductStatus.COMING_SOON);
+        ProductResponseDto result = productService.create(withoutPrice);
+
+        /* Then: se guarda sin precio, y el frontend mostrará "Consultar precio" */
+        assertThat(result.price()).isNull();
+        assertThat(result.name()).isEqualTo("Reinas");
+    }
+
+    @Test
     void updateThrowsExceptionWhenProductDoesNotExist() {
         when(productRepository.findById(99L)).thenReturn(Optional.empty());
 
