@@ -67,6 +67,7 @@ class ProductControllerIntegrationTest {
                 .description("Descripción de prueba")
                 .format("500 g")
                 .price(new BigDecimal("8.50"))
+                .category(ProductCategory.HONEY)
                 .status(status)
                 .build();
     }

@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import com.jayway.jsonpath.JsonPath;
 import com.mielchende.TestcontainersConfiguration;
+import com.mielchende.product.ProductCategory;
 import com.mielchende.product.ProductEntity;
 import com.mielchende.product.ProductRepository;
 import com.mielchende.product.ProductStatus;
@@ -31,6 +32,7 @@ import com.mielchende.role.RoleDataInitializer;
 import com.mielchende.role.RoleRepository;
 import com.mielchende.user.UserEntity;
 import com.mielchende.user.UserRepository;
+import com.mielchende.product.ProductCategory;
 
 /* Test de integración: la admin consulta y gestiona las solicitudes, contra MySQL real */
 @SpringBootTest
@@ -77,6 +79,7 @@ class AdminOrderControllerIntegrationTest {
                 .description("Descripción de prueba")
                 .format("500 g")
                 .price(new BigDecimal("8.50"))
+                .category(ProductCategory.HONEY)
                 .status(ProductStatus.AVAILABLE)
                 .build()).getId();
 

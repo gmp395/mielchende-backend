@@ -21,12 +21,14 @@ import com.mielchende.order.dto.CreateOrderDto;
 import com.mielchende.order.dto.OrderItemRequestDto;
 import com.mielchende.order.dto.OrderResponseDto;
 import com.mielchende.order.exception.ProductUnavailableException;
+import com.mielchende.product.ProductCategory;
 import com.mielchende.product.ProductEntity;
 import com.mielchende.product.ProductRepository;
 import com.mielchende.product.ProductStatus;
 import com.mielchende.product.exception.ProductNotFoundException;
 import com.mielchende.user.UserEntity;
 import com.mielchende.user.UserRepository;
+import com.mielchende.product.ProductCategory;
 
 /* Test unitario del servicio de solicitudes de pedido */
 @ExtendWith(MockitoExtension.class)
@@ -126,6 +128,7 @@ class OrderServiceImplTest {
                 .description("Descripción de prueba")
                 .format("500 g")
                 .price(new BigDecimal("8.50"))
+                .category(ProductCategory.HONEY)
                 .status(status)
                 .build();
     }

@@ -19,6 +19,7 @@ public class ProductMapper {
                 entity.getPrice(),
                 entity.getImageUrl(),
                 entity.getSeasonInfo(),
+                entity.getCategory(),
                 entity.getStatus());
     }
 
@@ -31,6 +32,7 @@ public class ProductMapper {
                 .price(dto.price())
                 .imageUrl(dto.imageUrl())
                 .seasonInfo(dto.seasonInfo())
+                .category(dto.category())
                 .status(dto.status())
                 .build();
     }
@@ -43,6 +45,7 @@ public class ProductMapper {
         entity.setPrice(dto.price());
         entity.setImageUrl(dto.imageUrl());
         entity.setSeasonInfo(dto.seasonInfo());
+        entity.setCategory(dto.category());
         entity.setStatus(dto.status());
     }
 }

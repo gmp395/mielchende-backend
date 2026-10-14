@@ -69,18 +69,21 @@ class ProductServiceImplTest {
         });
 
         /* When */
-        ProductResponseDto result = productService.create(request("Cera", ProductStatus.AVAILABLE));
+        ProductResponseDto result = productService.create(
+                request("Cera", ProductCategory.HIVE_PRODUCTS, ProductStatus.AVAILABLE));
 
-        /* Then */
+        /* Then: se asigna el id y se conservan el nombre y la categoría enviados */
         assertThat(result.id()).isEqualTo(5L);
         assertThat(result.name()).isEqualTo("Cera");
+        assertThat(result.category()).isEqualTo(ProductCategory.HIVE_PRODUCTS);
     }
 
     @Test
     void updateThrowsExceptionWhenProductDoesNotExist() {
         when(productRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> productService.update(99L, request("Cera", ProductStatus.AVAILABLE)))
+        assertThatThrownBy(() -> productService.update(99L,
+                request("Cera", ProductCategory.HIVE_PRODUCTS, ProductStatus.AVAILABLE)))
                 .isInstanceOf(ProductNotFoundException.class);
         verify(productRepository, never()).save(any());
     }
@@ -117,12 +120,13 @@ class ProductServiceImplTest {
                 .description("Descripción de prueba")
                 .format("500 g")
                 .price(new BigDecimal("8.50"))
+                .category(ProductCategory.HONEY)
                 .status(status)
                 .build();
     }
 
-    private ProductRequestDto request(String name, ProductStatus status) {
+    private ProductRequestDto request(String name, ProductCategory category, ProductStatus status) {
         return new ProductRequestDto(name, "Descripción de prueba", "500 g",
-                new BigDecimal("8.50"), null, null, status);
+                new BigDecimal("8.50"), null, null, category, status);
     }
 }

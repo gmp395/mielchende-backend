@@ -2,6 +2,7 @@ package com.mielchende.product.dto;
 
 import java.math.BigDecimal;
 
+import com.mielchende.product.ProductCategory;
 import com.mielchende.product.ProductStatus;
 
 /* Datos de un producto que devuelve la API (catálogo y ficha) */
@@ -13,5 +14,6 @@ public record ProductResponseDto(
     BigDecimal price,
     String imageUrl,
     String seasonInfo,
+    ProductCategory category,
     ProductStatus status
 ) { }

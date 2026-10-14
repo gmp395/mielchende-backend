@@ -31,33 +31,41 @@ public class ProductDataInitializer implements CommandLineRunner {
     /* Catálogo inicial: cada formato de miel es un producto distinto */
     List<ProductEntity> initialProducts() {
         return List.of(
-            product("Miel de castaño", "Miel de castaño de nuestra cosecha anual.", "500 g", "8.00", null),
-            product("Miel de castaño", "Miel de castaño de nuestra cosecha anual.", "1 kg", "15.00", null),
-            product("Miel milflores", "Miel milflores de nuestra cosecha anual.", "500 g", "7.00", null),
-            product("Miel milflores", "Miel milflores de nuestra cosecha anual.", "1 kg", "13.00", null),
-            product("Polen", "Polen recogido por nuestras abejas.", "250 g", "8.00", null),
-            product("Propóleo", "Propóleo de nuestras colmenas.", "Unidad", "6.00", null),
-            product("Cera", "Cera de abeja de nuestras colmenas.", "Unidad", "5.00", null),
+            product("Miel de castaño", "Miel de castaño de nuestra cosecha anual.", "500 g", "8.00",
+                    null, ProductCategory.HONEY),
+            product("Miel de castaño", "Miel de castaño de nuestra cosecha anual.", "1 kg", "15.00",
+                    null, ProductCategory.HONEY),
+            product("Miel milflores", "Miel milflores de nuestra cosecha anual.", "500 g", "7.00",
+                    null, ProductCategory.HONEY),
+            product("Miel milflores", "Miel milflores de nuestra cosecha anual.", "1 kg", "13.00",
+                    null, ProductCategory.HONEY),
+            product("Polen", "Polen recogido por nuestras abejas.", "250 g", "8.00",
+                    null, ProductCategory.HIVE_PRODUCTS),
+            product("Propóleo", "Propóleo de nuestras colmenas.", "Unidad", "6.00",
+                    null, ProductCategory.HIVE_PRODUCTS),
+            product("Cera", "Cera de abeja de nuestras colmenas.", "Unidad", "5.00",
+                    null, ProductCategory.HIVE_PRODUCTS),
             product("Enjambre", "Enjambre de abejas.", "Unidad", "120.00",
-                    "Consultar disponibilidad en temporada"),
+                    "Consultar disponibilidad en temporada", ProductCategory.BEEKEEPER_PRODUCTS),
             product("Reina fecundada", "Reina fecundada.", "Unidad", "30.00",
-                    "Consultar disponibilidad en temporada"),
+                    "Consultar disponibilidad en temporada", ProductCategory.BEEKEEPER_PRODUCTS),
             product("Reina virgen", "Reina virgen.", "Unidad", "15.00",
-                    "Consultar disponibilidad en temporada"),
+                    "Consultar disponibilidad en temporada", ProductCategory.BEEKEEPER_PRODUCTS),
             product("Núcleo", "Núcleo de abejas.", "Unidad", "90.00",
-                    "Consultar disponibilidad en temporada")
+                    "Consultar disponibilidad en temporada", ProductCategory.BEEKEEPER_PRODUCTS)
         );
     }
 
     /* Ayudante para no repetir el Builder once veces */
     private ProductEntity product(String name, String description, String format,
-                                  String price, String seasonInfo) {
+                                  String price, String seasonInfo, ProductCategory category) {
         return ProductEntity.builder()
                 .name(name)
                 .description(description)
                 .format(format)
                 .price(new BigDecimal(price))
                 .seasonInfo(seasonInfo)
+                .category(category)
                 .status(ProductStatus.AVAILABLE)
                 .build();
     }

@@ -54,6 +54,12 @@ public class ProductEntity {
     /* Información de temporada, solo para productos vivos (opcional) */
     private String seasonInfo;
 
+    /* Categoría para agrupar y filtrar el catálogo.
+       Se guarda como texto, igual que el estado */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ProductCategory category;
+
     /* Disponibilidad. EnumType.STRING guarda el texto ("AVAILABLE"),
        no la posición del enum: así añadir valores en el futuro no rompe los datos */
     @Enumerated(EnumType.STRING)

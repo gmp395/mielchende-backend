@@ -44,6 +44,7 @@ class AdminProductControllerIntegrationTest {
               "description": "Miel oscura de sabor intenso",
               "format": "500 g",
               "price": 8.50,
+              "category": "HONEY",
               "status": "AVAILABLE"
             }
             """;
@@ -163,6 +164,7 @@ class AdminProductControllerIntegrationTest {
                 .description("Miel oscura de sabor intenso")
                 .format("500 g")
                 .price(new BigDecimal("8.50"))
+                .category(ProductCategory.HONEY)
                 .status(ProductStatus.AVAILABLE)
                 .build()).getId();
     }
