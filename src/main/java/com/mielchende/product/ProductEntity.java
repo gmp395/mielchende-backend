@@ -44,8 +44,10 @@ public class ProductEntity {
     private String format;
 
     /* Precio orientativo. BigDecimal evita los errores de redondeo de double.
-       precision 8, scale 2 → hasta 999999.99 */
-    @Column(nullable = false, precision = 8, scale = 2)
+       precision 8, scale 2 → hasta 999999.99.
+       Opcional: null significa "precio a consultar" (p. ej. reinas o enjambres,
+       cuyo precio depende de la temporada) */
+    @Column(precision = 8, scale = 2)
     private BigDecimal price;
 
     /* Ruta o URL de la imagen del producto */
