@@ -1,10 +1,13 @@
 package com.mielchende.product;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,5 +45,34 @@ class ProductDataInitializerTest {
 
         /* Then: no se toca nada */
         verify(productRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void initialCatalogIsCompleteAndValid() {
+        /* When: se genera el catálogo inicial */
+        List<ProductEntity> products = initializer.initialProducts();
+
+        /* Then: los 9 productos reales */
+        assertThat(products).hasSize(9);
+
+        /* Todos tienen los datos obligatorios de la entidad, y su foto */
+        assertThat(products).allSatisfy(product -> {
+            assertThat(product.getName()).isNotBlank();
+            assertThat(product.getDescription()).isNotBlank();
+            assertThat(product.getFormat()).isNotBlank();
+            assertThat(product.getCategory()).isNotNull();
+            assertThat(product.getStatus()).isNotNull();
+            assertThat(product.getImageUrl()).startsWith("/images/products/");
+        });
+
+        /* Las mieles van primero (4 formatos) */
+        assertThat(products.subList(0, 4))
+                .allSatisfy(product -> assertThat(product.getCategory()).isEqualTo(ProductCategory.HONEY));
+
+        /* Los precios "a consultar" son exactamente propóleo, reina y enjambre */
+        assertThat(products)
+                .filteredOn(product -> product.getPrice() == null)
+                .extracting(ProductEntity::getName)
+                .containsExactlyInAnyOrder("Tintura de propóleo", "Reina", "Enjambre");
     }
 }
