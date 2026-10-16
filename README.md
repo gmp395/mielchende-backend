@@ -6,6 +6,10 @@ Proyecto final individual del bootcamp de desarrollo web full stack de Factoría
 
 El frontend está en [mielchende-frontend](https://github.com/gmp395/mielchende-frontend).
 
+La presentación del proyecto está en [Canva](https://canva.link/o9bquznrnbz66sf).
+
+La documentación ampliada está en la [wiki](https://github.com/gmp395/mielchende-backend/wiki).
+
 ## Índice
 
 - [Descripción](#descripción)
