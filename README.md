@@ -385,7 +385,7 @@ El token dura **1 hora**. En el resto de peticiones se envía como `Authorizatio
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| POST | `/orders` | Crea una solicitud `{ items: [{ productId, quantity }], phone?, comments? }` → 201. Producto agotado → 409 |
+| POST | `/orders` | Crea una solicitud `{ items: [{ productId, quantity }], phone?, comments? }` → 201. Producto agotado o todavía no disponible → 409 |
 | GET | `/orders` | Solicitudes del cliente con la sesión iniciada, de la más reciente a la más antigua |
 
 ### Administración (`ROLE_ADMIN`)
@@ -437,12 +437,12 @@ El token dura **1 hora**. En el resto de peticiones se envía como `Authorizatio
 
 Los tests de integración usan **Testcontainers**: levantan un contenedor de **MySQL 8.4**, la misma versión que en desarrollo, en lugar de una base de datos en memoria como H2. Así se prueba contra el mismo motor que usa la aplicación.
 
-La batería tiene **87 tests**:
+La batería tiene **88 tests**:
 
 - **Tests unitarios** de los servicios, la regla de cambio de estado, la fachada de BCrypt y los inicializadores, con Mockito.
 - **Tests de integración** con MockMvc, que recorren toda la cadena (seguridad → controller → servicio → base de datos): registro y login, catálogo, artículos, solicitudes, panel de administración y control de acceso por rol (por ejemplo, un cliente recibe 403 en un endpoint de administración).
 
-[<img src="docs/screenshots/tests-backend.png" width="500" alt="Resultado de ./mvnw test con los 87 tests en verde">](docs/screenshots/tests-backend.png)
+[<img src="docs/screenshots/tests-backend.png" width="500" alt="Resultado de ./mvnw test con los 88 tests en verde">](docs/screenshots/tests-backend.png)
 
 ## Decisiones técnicas
 

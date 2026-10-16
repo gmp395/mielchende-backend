@@ -84,6 +84,25 @@ class OrderServiceImplTest {
         verify(orderRepository, never()).save(any());
     }
 
+    /* MC-74: un producto "Próximamente" tampoco se puede solicitar,
+       aunque se llame a la API directamente sin pasar por la web */
+    @Test
+    void throwsExceptionWhenAProductIsComingSoon() {
+        /* Given: el producto existe, pero todavía no está disponible */
+        when(userRepository.findByEmail("ana@mail.com")).thenReturn(Optional.of(user));
+        when(productRepository.findById(1L))
+                .thenReturn(Optional.of(product(1L, "Reina fecundada", ProductStatus.COMING_SOON)));
+
+        CreateOrderDto request = new CreateOrderDto(
+                List.of(new OrderItemRequestDto(1L, 1)), null, null);
+
+        /* When / Then: se rechaza con su propio mensaje y no se guarda nada */
+        assertThatThrownBy(() -> orderService.create("ana@mail.com", request))
+                .isInstanceOf(ProductUnavailableException.class)
+                .hasMessageContaining("todavía no está disponible");
+        verify(orderRepository, never()).save(any());
+    }
+
     @Test
     void throwsExceptionWhenAProductDoesNotExist() {
         when(userRepository.findByEmail("ana@mail.com")).thenReturn(Optional.of(user));
