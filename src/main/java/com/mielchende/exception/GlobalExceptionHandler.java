@@ -16,6 +16,7 @@ import com.mielchende.order.exception.OrderNotFoundException;
 import com.mielchende.order.exception.ProductUnavailableException;
 import com.mielchende.product.exception.ProductNotFoundException;
 import com.mielchende.user.exception.UserAlreadyExistsException;
+import com.mielchende.article.exception.ArticleNotFoundException;
 
 /* Captura las excepciones lanzadas en cualquier parte de la aplicación
    y devuelve respuestas JSON claras, en lugar de stacktraces. */
@@ -36,6 +37,14 @@ public class GlobalExceptionHandler {
                 .body(Map.of("message", ex.getMessage()));
     }
 
+
+        /* Artículo inexistente → 404 Not Found con mensaje controlado */
+    @ExceptionHandler(ArticleNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleArticleNotFound(ArticleNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+    
     /* Solicitud de un producto agotado → 409 Conflict, indicando cuál */
     @ExceptionHandler(ProductUnavailableException.class)
     public ResponseEntity<Map<String, String>> handleProductUnavailable(ProductUnavailableException ex) {

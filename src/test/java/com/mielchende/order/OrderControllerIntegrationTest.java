@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.jayway.jsonpath.JsonPath;
 import com.mielchende.TestcontainersConfiguration;
+import com.mielchende.product.ProductCategory;
 import com.mielchende.product.ProductEntity;
 import com.mielchende.product.ProductRepository;
 import com.mielchende.product.ProductStatus;
@@ -217,6 +218,7 @@ class OrderControllerIntegrationTest {
                 .description("Descripción de prueba")
                 .format("500 g")
                 .price(new BigDecimal("8.50"))
+                .category(ProductCategory.HONEY)
                 .status(status)
                 .build()).getId();
     }

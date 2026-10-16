@@ -58,10 +58,15 @@ public class OrderServiceImpl implements OrderService {
             ProductEntity product = productRepository.findById(line.productId())
                     .orElseThrow(() -> new ProductNotFoundException("Producto no encontrado"));
 
-            if (product.getStatus() == ProductStatus.SOLD_OUT) {
+            /* Lista blanca: solo se admite AVAILABLE. Cualquier otro estado
+               (SOLD_OUT, COMING_SOON o uno que se añada en el futuro)
+               se rechaza por defecto. El mensaje depende del motivo */
+            if (product.getStatus() != ProductStatus.AVAILABLE) {
+                String reason = product.getStatus() == ProductStatus.SOLD_OUT
+                        ? "está agotado hasta la próxima cosecha"
+                        : "todavía no está disponible";
                 throw new ProductUnavailableException(
-                        product.getName() + " (" + product.getFormat()
-                        + ") está agotado hasta la próxima cosecha");
+                        product.getName() + " (" + product.getFormat() + ") " + reason);
             }
 
             order.addItem(OrderItemEntity.builder()

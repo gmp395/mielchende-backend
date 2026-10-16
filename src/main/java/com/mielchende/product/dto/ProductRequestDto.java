@@ -2,6 +2,7 @@ package com.mielchende.product.dto;
 
 import java.math.BigDecimal;
 
+import com.mielchende.product.ProductCategory;
 import com.mielchende.product.ProductStatus;
 
 import jakarta.validation.constraints.NotBlank;
@@ -21,14 +22,18 @@ public record ProductRequestDto(
     @NotBlank
     String format,
 
-    /* Obligatorio y mayor que cero */
-    @NotNull
+    /* Opcional (null = precio a consultar); si se envía, mayor que cero.
+       @Positive no se aplica a null: solo valida cuando hay valor */
     @Positive
     BigDecimal price,
 
     String imageUrl,
 
     String seasonInfo,
+
+    /* Obligatoria: todo producto pertenece a una categoría del catálogo */
+    @NotNull
+    ProductCategory category,
 
     @NotNull
     ProductStatus status
