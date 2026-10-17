@@ -46,7 +46,7 @@ La API cubre:
 | Seguridad | Spring Security, OAuth2 Resource Server (JWT con HS512), BCrypt |
 | Base de datos | MySQL 8.4 en Docker, con Docker Compose |
 | Utilidades | Lombok |
-| Testing | JUnit 5, Mockito, MockMvc y Testcontainers (MySQL real) |
+| Testing | JUnit 5, Mockito, MockMvc, Testcontainers (MySQL real) y JaCoCo (cobertura) |
 | Construcción | Maven (incluye Maven Wrapper) |
 
 ## Arquitectura
@@ -400,7 +400,7 @@ El token dura **1 hora**. En el resto de peticiones se envía como `Authorizatio
 |---|---|---|
 | GET | `/admin/orders` | Todas las solicitudes |
 | GET | `/admin/orders/summary` | Resumen: `{ pendingOrders }` (solicitudes recibidas sin revisar) |
-| PATCH | `/admin/orders/{id}/status` | Cambia el estado un paso adelante o atrás. Salto no permitido → 409 |
+| PATCH | `/admin/orders/{id}/status` | Cambia el estado de la solicitud un paso adelante o atrás. Salto no permitido → 409 |
 
 **Productos**
 
@@ -448,6 +448,22 @@ La batería tiene **88 tests**:
 
 [<img src="docs/screenshots/tests-backend.png" width="500" alt="Resultado de ./mvnw test con los 88 tests en verde">](docs/screenshots/tests-backend.png)
 
+### Cobertura
+
+La cobertura se mide con **JaCoCo**. El informe se genera solo al ejecutar `./mvnw test` y se abre en `target/site/jacoco/index.html`.
+
+| Medida | Cobertura |
+|---|---|
+| Instrucciones | 95 % |
+| Ramas | 93 % |
+
+La lógica de negocio (solicitudes, productos y seguridad) está cubierta al 98-100 %. Los porcentajes más bajos tienen una explicación:
+
+- En las excepciones de negocio, el constructor con causa no se usa en el código, así que ningún test lo ejecuta.
+- La clase `MielchendeBackendApplication` solo arranca la aplicación desde su método `main`, y los tests de Spring no pasan por él.
+
+[<img src="docs/screenshots/coverage-backend.png" width="500" alt="Informe de cobertura de JaCoCo: 95 % de instrucciones y 93 % de ramas">](docs/screenshots/coverage-backend.png)
+
 ## Decisiones técnicas
 
 - **Solicitud de pedido en lugar de compra online**, por el modelo real del negocio (una cosecha al año, gestión manual).
@@ -461,8 +477,17 @@ La batería tiene **88 tests**:
 
 ## Próximos pasos
 
+Funcionalidades diseñadas en los flujos y registradas en Jira, pendientes de implementar:
+
+- **Notificaciones por email** al cliente y al apicultor en cada cambio de estado de una solicitud.
 - **Página de detalle y categorías para los artículos** de Actualidad.
-- **Notificaciones por email** al cliente y al apicultor en cada cambio de estado.
+- **Formulario de contacto**, con los mensajes visibles en el panel de administración.
+- **Cambio y recuperación de contraseña.**
+- **Productos favoritos** en el área de cliente.
+- **Valoraciones de productos**, solo para clientes con una solicitud enviada.
+
+Mejoras técnicas:
+
 - **Configuración propia para los tests**, para que no dependan del `.env`.
 - **Despliegue** en un servidor con HTTPS.
 
