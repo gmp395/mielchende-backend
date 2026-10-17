@@ -152,6 +152,42 @@
 					</execution>
 				</executions>
 			</plugin>
+			<!--
+				JaCoCo: mide la cobertura de los tests, es decir, qué líneas
+				del código se ejecutan realmente cuando pasan los tests.
+				Spring Boot no gestiona la versión de este plugin, por eso
+				se indica a mano.
+			-->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.15</version>
+				<executions>
+					<!--
+						prepare-agent: antes de los tests, conecta el "agente"
+						de JaCoCo a la JVM para que vaya anotando qué líneas
+						se ejecutan.
+					-->
+					<execution>
+						<id>prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<!--
+						report: al terminar la fase test, convierte esas
+						anotaciones en un informe HTML en
+						target/site/jacoco/index.html
+					-->
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 
