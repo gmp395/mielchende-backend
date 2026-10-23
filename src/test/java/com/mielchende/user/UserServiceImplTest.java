@@ -3,6 +3,7 @@ package com.mielchende.user;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -19,6 +20,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.mielchende.role.RoleDataInitializer;
 import com.mielchende.role.RoleEntity;
 import com.mielchende.role.RoleRepository;
+import com.mielchende.security.captcha.CaptchaVerifier;
+import com.mielchende.security.captcha.exception.InvalidCaptchaException;
 import com.mielchende.security.facade.PasswordEncoderFacade;
 import com.mielchende.user.dto.RegisterRequestDto;
 import com.mielchende.user.dto.UserResponseDto;
@@ -37,15 +40,19 @@ class UserServiceImplTest {
     @Mock
     private PasswordEncoderFacade passwordEncoderFacade;
 
+    @Mock
+    private CaptchaVerifier captchaVerifier;
+
     @InjectMocks
     private UserServiceImpl userService;
 
     @Test
     void registersUserWithEncodedPasswordAndUserRole() {
-        /* Given: email libre, el rol existe y el cifrado devuelve un hash */
-        RegisterRequestDto request = new RegisterRequestDto("Ana", " Ana@Mail.com ", "secreta123");
+        /* Given: captcha válido, email libre, el rol existe y el cifrado devuelve un hash */
+        RegisterRequestDto request = new RegisterRequestDto("Ana", " Ana@Mail.com ", "secreta123", "token-valido");
         RoleEntity userRole = RoleEntity.builder().id(1L).name(RoleDataInitializer.ROLE_USER).build();
 
+        when(captchaVerifier.verify("token-valido")).thenReturn(true);
         when(userRepository.existsByEmail("ana@mail.com")).thenReturn(false);
         when(roleRepository.findByName(RoleDataInitializer.ROLE_USER)).thenReturn(Optional.of(userRole));
         when(passwordEncoderFacade.encode("secreta123")).thenReturn("hash-bcrypt");
@@ -76,13 +83,28 @@ class UserServiceImplTest {
 
     @Test
     void throwsExceptionWhenEmailAlreadyExists() {
-        /* Given: el email ya está registrado */
-        RegisterRequestDto request = new RegisterRequestDto("Ana", "ana@mail.com", "secreta123");
+        /* Given: captcha válido, pero el email ya está registrado */
+        RegisterRequestDto request = new RegisterRequestDto("Ana", "ana@mail.com", "secreta123", "token-valido");
+        when(captchaVerifier.verify("token-valido")).thenReturn(true);
         when(userRepository.existsByEmail("ana@mail.com")).thenReturn(true);
 
         /* When + Then: se lanza la excepción y no se guarda nada */
         assertThatThrownBy(() -> userService.register(request))
                 .isInstanceOf(UserAlreadyExistsException.class);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void rejectsInvalidCaptchaBeforeCheckingEmail() {
+        /* Given: captcha no superado */
+        RegisterRequestDto request = new RegisterRequestDto("Bot", "bot@spam.com", "secreta123", "token-falso");
+        when(captchaVerifier.verify("token-falso")).thenReturn(false);
+
+        /* When + Then: se rechaza sin llegar a consultar si el email existe.
+           Así un bot no puede averiguar qué correos tienen cuenta */
+        assertThatThrownBy(() -> userService.register(request))
+                .isInstanceOf(InvalidCaptchaException.class);
+        verify(userRepository, never()).existsByEmail(anyString());
         verify(userRepository, never()).save(any());
     }
 }

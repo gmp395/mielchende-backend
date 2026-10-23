@@ -48,6 +48,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 /* Artículos publicados de Actualidad: públicos, solo lectura */
                 .requestMatchers(HttpMethod.GET, "/api/articles").permitAll()
+                /* Formulario de contacto: público, solo envío */
+                .requestMatchers(HttpMethod.POST, "/api/contact").permitAll()
                 /* Ruta interna de errores: pública, para no convertir errores en 401 */
                 .requestMatchers("/error").permitAll()
                 /* Panel de administración: solo ROLE_ADMIN */

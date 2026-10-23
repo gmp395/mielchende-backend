@@ -6,6 +6,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.mielchende.role.RoleDataInitializer;
 import com.mielchende.role.RoleEntity;
 import com.mielchende.role.RoleRepository;
+import com.mielchende.security.captcha.CaptchaVerifier;
+import com.mielchende.security.captcha.exception.InvalidCaptchaException;
 import com.mielchende.security.facade.PasswordEncoderFacade;
 import com.mielchende.user.dto.RegisterRequestDto;
 import com.mielchende.user.dto.UserResponseDto;
@@ -18,14 +20,17 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoderFacade passwordEncoderFacade;
+    private final CaptchaVerifier captchaVerifier;
 
-    /* Inyección por constructor de las tres dependencias */
+    /* Inyección por constructor de las cuatro dependencias */
     public UserServiceImpl(UserRepository userRepository,
                            RoleRepository roleRepository,
-                           PasswordEncoderFacade passwordEncoderFacade) {
+                           PasswordEncoderFacade passwordEncoderFacade,
+                           CaptchaVerifier captchaVerifier) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoderFacade = passwordEncoderFacade;
+        this.captchaVerifier = captchaVerifier;
     }
 
     /* @Transactional: si algo falla a mitad, se deshace todo (rollback);
@@ -33,6 +38,12 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponseDto register(RegisterRequestDto request) {
+
+        /* 0. Captcha antes que nada: así un bot tampoco puede usar el registro
+           para averiguar qué correos tienen ya cuenta */
+        if (!captchaVerifier.verify(request.captchaToken())) {
+            throw new InvalidCaptchaException("No se ha podido verificar que no eres un robot");
+        }
 
         /* Normalizamos el email (sin espacios y en minúsculas)
            para que "Ana@Mail.com" y "ana@mail.com" cuenten como el mismo */

@@ -1,6 +1,7 @@
 package com.mielchende.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -12,9 +13,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.mielchende.TestcontainersConfiguration;
+import com.mielchende.security.captcha.CaptchaVerifier;
 import com.mielchende.user.UserEntity;
 import com.mielchende.user.UserRepository;
 
@@ -36,12 +39,18 @@ class AuthControllerIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
+    /* Sustituye al verificador real: los tests no llaman a Cloudflare */
+    @MockitoBean
+    private CaptchaVerifier captchaVerifier;
+
     /* Antes de cada test vaciamos la tabla users,
        para que un test no dependa de lo que dejó el anterior.
-       Los roles no se borran: los crea RoleDataInitializer al arrancar */
+       Los roles no se borran: los crea RoleDataInitializer al arrancar.
+       El captcha falso solo acepta "token-valido" */
     @BeforeEach
-    void cleanUsers() {
+    void setUp() {
         userRepository.deleteAll();
+        when(captchaVerifier.verify("token-valido")).thenReturn(true);
     }
 
     @Test
@@ -50,7 +59,8 @@ class AuthControllerIntegrationTest {
                 {
                   "name": "Ana Prueba",
                   "email": "ana@prueba.com",
-                  "password": "contrasenaDePrueba123"
+                  "password": "contrasenaDePrueba123",
+                  "captchaToken": "token-valido"
                 }
                 """;
 
@@ -76,7 +86,8 @@ class AuthControllerIntegrationTest {
                 {
                   "name": "Ana Prueba",
                   "email": "ana@prueba.com",
-                  "password": "contrasenaDePrueba123"
+                  "password": "contrasenaDePrueba123",
+                  "captchaToken": "token-valido"
                 }
                 """;
 
@@ -95,12 +106,34 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void registerReturns400WhenCaptchaIsInvalid() throws Exception {
+        String body = """
+                {
+                  "name": "Ana Prueba",
+                  "email": "ana@prueba.com",
+                  "password": "contrasenaDePrueba123",
+                  "captchaToken": "token-falso"
+                }
+                """;
+
+        mockMvc.perform(post(REGISTER_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("No se ha podido verificar que no eres un robot"));
+
+        /* Y no se ha guardado nada en la base de datos */
+        assertThat(userRepository.findByEmail("ana@prueba.com")).isEmpty();
+    }
+
+    @Test
     void registerReturns400WhenEmailIsBlank() throws Exception {
         String body = """
                 {
                   "name": "Ana Prueba",
                   "email": "",
-                  "password": "contrasenaDePrueba123"
+                  "password": "contrasenaDePrueba123",
+                  "captchaToken": "token-valido"
                 }
                 """;
 
@@ -135,7 +168,8 @@ class AuthControllerIntegrationTest {
                 {
                   "name": "Ana Prueba",
                   "email": "ana@prueba.com",
-                  "password": "corta12"
+                  "password": "corta12",
+                  "captchaToken": "token-valido"
                 }
                 """;
 
