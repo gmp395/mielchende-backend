@@ -1,6 +1,9 @@
 package com.mielchende.contact;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,23 +19,29 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.mielchende.contact.dto.ContactMessageRequestDto;
 import com.mielchende.contact.dto.ContactMessageResponseDto;
+import com.mielchende.security.captcha.CaptchaVerifier;
+import com.mielchende.security.captcha.exception.InvalidCaptchaException;
 
 /* Test unitario del servicio de mensajes de contacto:
-   qué se guarda y en qué orden se devuelven */
+   captcha, qué se guarda y en qué orden se devuelven */
 @ExtendWith(MockitoExtension.class)
 class ContactMessageServiceImplTest {
 
     @Mock
     private ContactMessageRepository contactMessageRepository;
 
+    @Mock
+    private CaptchaVerifier captchaVerifier;
+
     @InjectMocks
     private ContactMessageServiceImpl contactMessageService;
 
     @Test
     void createSavesFormDataWithCreationDate() {
-        /* Given */
+        /* Given: captcha válido */
         ContactMessageRequestDto request = new ContactMessageRequestDto(
-                "Ana", "ana@prueba.com", "¿Tenéis miel de castaño?");
+                "Ana", "ana@prueba.com", "¿Tenéis miel de castaño?", "token-valido");
+        when(captchaVerifier.verify("token-valido")).thenReturn(true);
 
         /* When */
         contactMessageService.create(request);
@@ -48,6 +57,19 @@ class ContactMessageServiceImplTest {
         assertThat(saved.getMessage()).isEqualTo("¿Tenéis miel de castaño?");
         /* La fecha la pone el servidor */
         assertThat(saved.getCreatedAt()).isNotNull();
+    }
+
+    @Test
+    void createRejectsInvalidCaptchaAndSavesNothing() {
+        /* Given: captcha no superado */
+        ContactMessageRequestDto request = new ContactMessageRequestDto(
+                "Bot", "bot@spam.com", "Compra ya", "token-falso");
+        when(captchaVerifier.verify("token-falso")).thenReturn(false);
+
+        /* When + Then: se lanza la excepción y no se guarda nada */
+        assertThatThrownBy(() -> contactMessageService.create(request))
+                .isInstanceOf(InvalidCaptchaException.class);
+        verify(contactMessageRepository, never()).save(any());
     }
 
     @Test

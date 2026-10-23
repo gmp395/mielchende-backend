@@ -8,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.mielchende.contact.dto.ContactMessageRequestDto;
 import com.mielchende.contact.dto.ContactMessageResponseDto;
+import com.mielchende.security.captcha.CaptchaVerifier;
+import com.mielchende.security.captcha.exception.InvalidCaptchaException;
 
 /* Lógica de los mensajes de contacto:
    guardar los que llegan del formulario y listarlos para el admin */
@@ -15,17 +17,24 @@ import com.mielchende.contact.dto.ContactMessageResponseDto;
 public class ContactMessageServiceImpl implements ContactMessageService {
 
     private final ContactMessageRepository contactMessageRepository;
+    private final CaptchaVerifier captchaVerifier;
 
     /* Inyección por constructor (apuntes, sección 6) */
-    public ContactMessageServiceImpl(ContactMessageRepository contactMessageRepository) {
+    public ContactMessageServiceImpl(ContactMessageRepository contactMessageRepository,
+                                     CaptchaVerifier captchaVerifier) {
         this.contactMessageRepository = contactMessageRepository;
+        this.captchaVerifier = captchaVerifier;
     }
 
-    /* Guardar: la fecha de envío la pone el servidor,
-       para que nadie pueda enviar una fecha inventada */
+    /* Guardar: primero se comprueba el captcha; si no es válido, no se guarda nada.
+       La fecha de envío la pone el servidor, para que nadie pueda enviar una fecha inventada */
     @Override
     @Transactional
     public void create(ContactMessageRequestDto request) {
+        if (!captchaVerifier.verify(request.captchaToken())) {
+            throw new InvalidCaptchaException("No se ha podido verificar que no eres un robot");
+        }
+
         ContactMessageEntity contactMessage = ContactMessageMapper.toEntity(request);
         contactMessage.setCreatedAt(LocalDateTime.now());
         contactMessageRepository.save(contactMessage);

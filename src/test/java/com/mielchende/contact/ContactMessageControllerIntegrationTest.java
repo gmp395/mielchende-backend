@@ -1,6 +1,7 @@
 package com.mielchende.contact;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -17,12 +18,14 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.jayway.jsonpath.JsonPath;
 import com.mielchende.TestcontainersConfiguration;
 import com.mielchende.role.RoleDataInitializer;
 import com.mielchende.role.RoleRepository;
+import com.mielchende.security.captcha.CaptchaVerifier;
 import com.mielchende.user.UserEntity;
 import com.mielchende.user.UserRepository;
 
@@ -43,7 +46,8 @@ class ContactMessageControllerIntegrationTest {
             {
               "name": "Ana",
               "email": "ana@prueba.com",
-              "message": "¿Tenéis miel de castaño?"
+              "message": "¿Tenéis miel de castaño?",
+              "captchaToken": "token-valido"
             }
             """;
 
@@ -62,7 +66,13 @@ class ContactMessageControllerIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    /* Antes de cada test: tablas limpias, un admin y un cliente */
+    /* Sustituye al verificador real dentro de la aplicación:
+       los tests no llaman a Cloudflare */
+    @MockitoBean
+    private CaptchaVerifier captchaVerifier;
+
+    /* Antes de cada test: tablas limpias, un admin y un cliente,
+       y el captcha falso, que solo acepta "token-valido" */
     @BeforeEach
     void setUp() {
         contactMessageRepository.deleteAll();
@@ -70,11 +80,13 @@ class ContactMessageControllerIntegrationTest {
 
         createUser("Admin", ADMIN_EMAIL, RoleDataInitializer.ROLE_ADMIN);
         createUser("Cliente", CLIENT_EMAIL, RoleDataInitializer.ROLE_USER);
+
+        when(captchaVerifier.verify("token-valido")).thenReturn(true);
     }
 
     @Test
     void visitorCanSendMessageWithoutToken() throws Exception {
-        /* Sin token: el formulario es público */
+        /* Sin token de sesión: el formulario es público */
         mockMvc.perform(post(PUBLIC_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_MESSAGE))
@@ -82,6 +94,19 @@ class ContactMessageControllerIntegrationTest {
 
         /* Y el mensaje queda guardado en la base de datos */
         assertThat(contactMessageRepository.findAll()).hasSize(1);
+    }
+
+    @Test
+    void messageWithInvalidCaptchaReturns400() throws Exception {
+        String message = VALID_MESSAGE.replace("token-valido", "token-falso");
+
+        mockMvc.perform(post(PUBLIC_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(message))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("No se ha podido verificar que no eres un robot"));
+
+        assertThat(contactMessageRepository.findAll()).isEmpty();
     }
 
     @Test

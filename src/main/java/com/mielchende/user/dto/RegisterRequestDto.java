@@ -24,5 +24,10 @@ public record RegisterRequestDto(
        con el mensaje "password: debe tener al menos 8 caracteres" */
     @NotBlank
     @Size(min = 8, message = "debe tener al menos 8 caracteres")
-    String password
+    String password,
+
+    /* Token del captcha que entrega Cloudflare al superarlo.
+       No se guarda: solo se verifica en el Service */
+    @NotBlank
+    String captchaToken
 ) { }
