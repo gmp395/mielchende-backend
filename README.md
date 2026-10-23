@@ -35,7 +35,9 @@ La API cubre:
 - **Registro e inicio de sesión** de clientes, con tokens JWT.
 - **Solicitudes de pedido** con varios productos, y consulta del historial propio ("Mis solicitudes").
 - **Actualidad**: artículos que el apicultor redacta desde el panel y que el público ve solo cuando están publicados.
-- **Panel de administración**: gestión del catálogo, de los artículos y de las solicitudes, que siguen el ciclo Recibido → Confirmado → Enviado. Las solicitudes y los artículos nunca se borran, para conservar el historial.
+- **Formulario de contacto**: el visitante deja su nombre, su correo y su mensaje, y el apicultor lo lee en el panel. Así el correo del negocio no se publica en la web, donde lo recogerían los bots.
+- **Captcha** (Cloudflare Turnstile) en el registro y en el formulario de contacto, para frenar los envíos automáticos.
+- **Panel de administración**: gestión del catálogo, de los artículos, de las solicitudes (que siguen el ciclo Recibido → Confirmado → Enviado) y lectura de los mensajes de contacto. Las solicitudes y los artículos nunca se borran, para conservar el historial.
 
 ## Tecnologías
 
@@ -43,7 +45,7 @@ La API cubre:
 |---|---|
 | Lenguaje | Java 21 |
 | Framework | Spring Boot 4.1 (Web MVC, Data JPA, Validation) |
-| Seguridad | Spring Security, OAuth2 Resource Server (JWT con HS512), BCrypt |
+| Seguridad | Spring Security, OAuth2 Resource Server (JWT con HS512), BCrypt, Cloudflare Turnstile (captcha) |
 | Base de datos | MySQL 8.4 en Docker, con Docker Compose |
 | Utilidades | Lombok |
 | Testing | JUnit 5, Mockito, MockMvc, Testcontainers (MySQL real) y JaCoCo (cobertura) |
@@ -57,21 +59,23 @@ El código está organizado **por funcionalidad** (*feature*), no por capas: cad
 src/main/java/com/mielchende
 ├── article/     Artículos de Actualidad (público y administración)
 ├── auth/        Registro e inicio de sesión
+├── contact/     Mensajes del formulario de contacto (envío público y lectura en el panel)
 ├── order/       Solicitudes de pedido (cliente y administración)
 ├── product/     Catálogo (público y administración)
 ├── role/        Roles ROLE_USER y ROLE_ADMIN
-├── security/    SecurityFilterChain, JWT, UserDetailsService y fachada de BCrypt
+├── security/    SecurityFilterChain, JWT, UserDetailsService, fachada de BCrypt
+│                y verificación del captcha (captcha/)
 ├── user/        Usuarios y administrador inicial
 └── exception/   GlobalExceptionHandler: errores uniformes { "message": "..." }
 ```
 
-Cada funcionalidad tiene sus propias excepciones de negocio (por ejemplo, `ProductNotFoundException`, `ArticleNotFoundException` o `InvalidStatusTransitionException`), que el `GlobalExceptionHandler` traduce al código HTTP correspondiente.
+Cada funcionalidad tiene sus propias excepciones de negocio (por ejemplo, `ProductNotFoundException`, `InvalidStatusTransitionException` o `InvalidCaptchaException`), que el `GlobalExceptionHandler` traduce al código HTTP correspondiente.
 
 ## Diagramas
 
 ### Diagrama entidad-relación
 
-Tablas de la base de datos y sus relaciones. Las líneas de las solicitudes se guardan aparte (`order_items`) porque una solicitud puede incluir varios productos. Los artículos son independientes: no se relacionan con ninguna otra tabla.
+Tablas de la base de datos y sus relaciones. Las líneas de las solicitudes se guardan aparte (`order_items`) porque una solicitud puede incluir varios productos. Los artículos y los mensajes de contacto son independientes: no se relacionan con ninguna otra tabla. Un mensaje de contacto no exige cuenta, así que no se vincula a ningún usuario.
 
 ```mermaid
 erDiagram
@@ -125,6 +129,13 @@ erDiagram
         varchar status "DRAFT o PUBLISHED"
         datetime created_at
         datetime published_at "vacío mientras es borrador"
+    }
+    CONTACT_MESSAGES {
+        bigint id PK
+        varchar name "hasta 100 caracteres"
+        varchar email
+        text message "hasta 2000 caracteres"
+        datetime created_at
     }
 ```
 
@@ -185,6 +196,13 @@ classDiagram
         -ArticleStatus status
         -LocalDateTime createdAt
         -LocalDateTime publishedAt
+    }
+    class ContactMessageEntity {
+        -Long id
+        -String name
+        -String email
+        -String message
+        -LocalDateTime createdAt
     }
     class ProductCategory {
         <<enumeration>>
@@ -361,8 +379,11 @@ Los datos se guardan en un volumen de Docker, así que se conservan entre arranq
 | `ADMIN_NAME` | Nombre del administrador inicial |
 | `ADMIN_EMAIL` | Email con el que inicia sesión el administrador |
 | `ADMIN_PASSWORD` | Contraseña inicial del administrador |
+| `TURNSTILE_SECRET_KEY` | Clave secreta de Cloudflare Turnstile para verificar el captcha |
 
 Docker Compose usa las variables de MySQL para crear el contenedor, y Spring Boot las usa para conectarse a él.
+
+**Sobre el captcha:** el `.env.example` trae la **clave secreta de prueba** de Cloudflare (`1x0000000000000000000000000000000AA`), que acepta siempre el token de prueba del frontend. Sirve para desarrollo, sin crear cuenta en Cloudflare. Para publicar la web hay que crear un *widget* en el panel de Cloudflare Turnstile y sustituirla por la clave real. Si falta la variable, la aplicación arranca, pero rechaza todos los registros y mensajes de contacto: el captcha **falla cerrado** (sin clave no se puede verificar a nadie). La verificación necesita conexión a internet, porque el backend consulta a Cloudflare.
 
 ## Endpoints de la API
 
@@ -372,7 +393,7 @@ Todas las rutas empiezan por `/api`. Los errores siempre llegan como `{ "message
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| POST | `/auth/register` | Registro. Cuerpo `{ name, email, password }` (contraseña de 8 caracteres o más) → 201. Email ya registrado → 409 |
+| POST | `/auth/register` | Registro. Cuerpo `{ name, email, password, captchaToken }` (contraseña de 8 caracteres o más) → 201. Captcha no válido → 400. Email ya registrado → 409 |
 | POST | `/auth/login` | Credenciales por Basic Auth → `{ token }`. Credenciales incorrectas → 401 |
 
 El token dura **1 hora**. En el resto de peticiones se envía como `Authorization: Bearer <token>`.
@@ -384,6 +405,12 @@ El token dura **1 hora**. En el resto de peticiones se envía como `Authorizatio
 | GET | `/products` | Lista de productos |
 | GET | `/products/{id}` | Un producto. Si no existe → 404 |
 | GET | `/articles` | Artículos publicados, del más reciente al más antiguo. Los borradores nunca salen aquí |
+
+### Contacto (público)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| POST | `/contact` | Envía un mensaje `{ name, email, message, captchaToken }` → 201 sin cuerpo. Captcha no válido → 400 |
 
 ### Cliente (`ROLE_USER`)
 
@@ -421,13 +448,21 @@ El token dura **1 hora**. En el resto de peticiones se envía como `Authorizatio
 | PUT | `/admin/articles/{id}` | Edita los textos de un artículo |
 | PATCH | `/admin/articles/{id}/status` | Publica o despublica (`PUBLISHED` o `DRAFT`). No hay borrado |
 
+**Mensajes de contacto**
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/admin/contact-messages` | Todos los mensajes, del más reciente al más antiguo. Solo lectura: el apicultor responde desde su correo |
+
 ## Seguridad
 
 - **Autenticación sin estado (*stateless*)** con JWT firmado con HS512. El login usa Basic Auth una sola vez para obtener el token.
 - **Contraseñas cifradas con BCrypt**, a través de una fachada (`PasswordEncoderFacade`).
-- **Autorización por rol** en la `SecurityFilterChain`: el catálogo, los artículos publicados y el registro son públicos, las solicitudes son de `ROLE_USER` y todo `/api/admin/**` es de `ROLE_ADMIN`.
+- **Autorización por rol** en la `SecurityFilterChain`: el catálogo, los artículos publicados, el registro y el envío del formulario de contacto son públicos (solo el método que hace falta en cada ruta), las solicitudes son de `ROLE_USER` y todo `/api/admin/**` es de `ROLE_ADMIN`.
 - **Cada cliente solo ve sus solicitudes**: el backend obtiene el usuario del token, nunca de un id en la URL.
-- **Los artículos se guardan como texto plano**, sin HTML, y el frontend los muestra sin interpretarlos como HTML, para evitar ataques XSS.
+- **Captcha en el registro y en el contacto**: el servicio verifica el token con Cloudflare antes de guardar nada. Si no es válido, o no se puede verificar, la petición se rechaza (falla cerrado). En el registro se comprueba antes que el correo duplicado, para que un bot no pueda averiguar qué correos tienen cuenta.
+- **Correo del negocio fuera de la web**: el contacto se hace por formulario, para que los bots no lo recojan.
+- **Los artículos y los mensajes se guardan como texto plano**, sin HTML, y el frontend los muestra sin interpretarlos como HTML, para evitar ataques XSS.
 - **CORS** limitado al origen del frontend (`http://localhost:5173`), permitiendo la cabecera `Authorization`.
 - **Credenciales fuera del código**, en el `.env`.
 
@@ -441,12 +476,14 @@ El token dura **1 hora**. En el resto de peticiones se envía como `Authorizatio
 
 Los tests de integración usan **Testcontainers**: levantan un contenedor de **MySQL 8.4**, la misma versión que en desarrollo, en lugar de una base de datos en memoria como H2. Así se prueba contra el mismo motor que usa la aplicación.
 
-La batería tiene **88 tests**:
+La batería tiene **103 tests**:
 
-- **Tests unitarios** de los servicios, la regla de cambio de estado, la fachada de BCrypt y los inicializadores, con Mockito.
-- **Tests de integración** con MockMvc, que recorren toda la cadena (seguridad → controller → servicio → base de datos): registro y login, catálogo, artículos, solicitudes, panel de administración y control de acceso por rol (por ejemplo, un cliente recibe 403 en un endpoint de administración).
+- **Tests unitarios** de los servicios, la regla de cambio de estado, la fachada de BCrypt, el verificador del captcha y los inicializadores, con Mockito.
+- **Tests de integración** con MockMvc, que recorren toda la cadena (seguridad → controller → servicio → base de datos): registro y login, catálogo, artículos, solicitudes, formulario de contacto, panel de administración y control de acceso por rol (por ejemplo, un cliente recibe 403 en un endpoint de administración).
 
-[<img src="docs/screenshots/tests-backend.png" width="500" alt="Resultado de ./mvnw test con los 88 tests en verde">](docs/screenshots/tests-backend.png)
+Los tests **no llaman a Cloudflare**: el verificador del captcha se sustituye por un *mock* (`@MockitoBean`), que acepta un token de prueba y rechaza cualquier otro. Así se prueban los dos caminos sin depender de internet.
+
+[<img src="docs/screenshots/tests-backend.png" width="500" alt="Resultado de ./mvnw test con los 103 tests en verde">](docs/screenshots/tests-backend.png)
 
 ### Cobertura
 
@@ -454,15 +491,16 @@ La cobertura se mide con **JaCoCo**. El informe se genera solo al ejecutar `./mv
 
 | Medida | Cobertura |
 |---|---|
-| Instrucciones | 95 % |
-| Ramas | 93 % |
+| Instrucciones | 92 % |
+| Ramas | 85 % |
 
-La lógica de negocio (solicitudes, productos y seguridad) está cubierta al 98-100 %. Los porcentajes más bajos tienen una explicación:
+La lógica de negocio (solicitudes, productos, contacto y seguridad) está cubierta al 98-100 %. Los porcentajes más bajos tienen una explicación:
 
+- La llamada a la API de Cloudflare, en `TurnstileCaptchaVerifier`, no se ejecuta en los tests: es una decisión consciente, porque los tests sustituyen el verificador por un *mock* para no depender de internet. Sí se prueban los casos que lo rechazan antes de llamar (sin clave o sin token).
 - En las excepciones de negocio, el constructor con causa no se usa en el código, así que ningún test lo ejecuta.
 - La clase `MielchendeBackendApplication` solo arranca la aplicación desde su método `main`, y los tests de Spring no pasan por él.
 
-[<img src="docs/screenshots/coverage-backend.png" width="500" alt="Informe de cobertura de JaCoCo: 95 % de instrucciones y 93 % de ramas">](docs/screenshots/coverage-backend.png)
+[<img src="docs/screenshots/coverage-backend.png" width="500" alt="Informe de cobertura de JaCoCo: 92 % de instrucciones y 85 % de ramas">](docs/screenshots/coverage-backend.png)
 
 ## Decisiones técnicas
 
@@ -473,15 +511,19 @@ La lógica de negocio (solicitudes, productos y seguridad) está cubierta al 98-
 - **JWT en lugar de sesión**, para que la API sea *stateless*.
 - **La contraseña del registro llega sin codificar en Base64** (viaja por HTTPS en producción) y se cifra solo con BCrypt.
 - **Testcontainers en lugar de H2**, para que los tests prueben contra MySQL real.
+- **Formulario de contacto en lugar de un correo visible**, para que los bots no recojan la dirección del negocio. El envío responde 201 sin cuerpo: quien escribe no necesita recibir de vuelta el id ni la fecha de su mensaje.
+- **Captcha detrás de una interfaz** (`CaptchaVerifier`): los servicios no dependen de Cloudflare, y en los tests se sustituye por un *mock*. Cambiar de proveedor solo obligaría a escribir otra implementación.
+- **Cloudflare Turnstile en lugar de Google reCAPTCHA**, por ser gratuito y más respetuoso con la privacidad.
 - **Paquetes por funcionalidad**, siguiendo la convención actual de Spring.
 
 ## Próximos pasos
 
 Funcionalidades diseñadas en los flujos y registradas en Jira, pendientes de implementar:
 
-- **Notificaciones por email** al cliente y al apicultor en cada cambio de estado de una solicitud.
-- **Página de detalle y categorías para los artículos** de Actualidad.
-- **Formulario de contacto**, con los mensajes visibles en el panel de administración.
+- **Notificaciones por email** al cliente y al apicultor en cada cambio de estado de una solicitud, y al apicultor cuando llega un mensaje de contacto.
+- **Mensajes leídos y sin leer** en el panel, con un contador de mensajes nuevos.
+- **Categorías para los artículos** de Actualidad.
+- **Subida de imágenes** desde el panel (hoy se indica la URL de la imagen).
 - **Cambio y recuperación de contraseña.**
 - **Productos favoritos** en el área de cliente.
 - **Valoraciones de productos**, solo para clientes con una solicitud enviada.
@@ -489,7 +531,8 @@ Funcionalidades diseñadas en los flujos y registradas en Jira, pendientes de im
 Mejoras técnicas:
 
 - **Configuración propia para los tests**, para que no dependan del `.env`.
-- **Despliegue** en un servidor con HTTPS.
+- **Declarar el agente de Mockito** en la configuración de Maven, para eliminar los avisos de carga dinámica de agentes que muestra Java 21 al ejecutar los tests.
+- **Despliegue** en un servidor con HTTPS, con las claves reales de Cloudflare Turnstile.
 
 ## Autora
 
