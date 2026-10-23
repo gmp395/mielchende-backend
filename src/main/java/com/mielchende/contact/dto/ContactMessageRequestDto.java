@@ -23,5 +23,10 @@ public record ContactMessageRequestDto(
        y evita que se envíen textos enormes */
     @NotBlank
     @Size(max = 2000)
-    String message
+    String message,
+
+    /* Token del captcha que entrega Cloudflare al superarlo.
+       No se guarda: solo se verifica en el Service */
+    @NotBlank
+    String captchaToken
 ) { }

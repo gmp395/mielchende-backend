@@ -1,6 +1,7 @@
 package com.mielchende.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -13,10 +14,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.jayway.jsonpath.JsonPath;
 import com.mielchende.TestcontainersConfiguration;
+import com.mielchende.security.captcha.CaptchaVerifier;
 import com.mielchende.user.UserRepository;
 
 /* Test de integración del login con JWT, contra MySQL real (Testcontainers) */
@@ -34,17 +37,23 @@ class LoginIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
+    /* Sustituye al verificador real: los tests no llaman a Cloudflare */
+    @MockitoBean
+    private CaptchaVerifier captchaVerifier;
+
     /* Antes de cada test: base de datos limpia y un usuario registrado
        a través del propio endpoint, como lo haría una persona real */
     @BeforeEach
     void registerUser() throws Exception {
         userRepository.deleteAll();
+        when(captchaVerifier.verify("token-valido")).thenReturn(true);
 
         String body = """
                 {
                   "name": "Ana Prueba",
                   "email": "%s",
-                  "password": "%s"
+                  "password": "%s",
+                  "captchaToken": "token-valido"
                 }
                 """.formatted(EMAIL, PASSWORD);
 
